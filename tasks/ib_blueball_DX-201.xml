@@ -1,0 +1,174 @@
+<?xml version="1.0" encoding="utf-8"?>
+<Task>
+	<Components>
+		<ImageSource type="CameraUniCap" thread="ProcessingThread" group="s1">
+<!--			<dev>
+				  <device>/dev/video0</device>
+					<input>Composite0</input>
+			</dev>-->
+		</ImageSource>
+		
+<!--		<CvUndistort type="CvUndistort" thread="ImageSourceThread" group="s1">
+			<cameraMatrix>
+				[3,3](
+					(647.07647705, 0., 383.50000000),
+					(0., 632.76348877, 287.50000000),
+					(0, 0, 1)
+				)
+			</cameraMatrix>
+			<distCoeffs>
+				[1,5](
+					(-0.51084775, 0.23313555, 4.50637517e-03, -6.86281081e-03, 4.94365674e-03)
+				)
+			</distCoeffs>
+		</CvUndistort>
+-->
+<!--
+		<NewestImage type="NewestImage" thread="ProcessingThread" group="s1">
+		</NewestImage>
+		
+		<EventTimestamp type="EventTimestamp" thread="ProcessingThread" group="s1">
+		</EventTimestamp>
+-->
+
+	
+		<ColorConv type="CvColorConv" thread="ProcessingThread" group="s1">
+			<type>BGR2HSV</type>
+		</ColorConv> 
+
+		<LUT type="MS_Blueball_LUT" thread="ProcessingThread" group="s1">
+			
+		</LUT>
+
+		<MorphClose type="CvMorphology" thread="ProcessingThread" group="s1">
+			<type>MORPH_CLOSE</type>
+			<iterations>3</iterations>
+		</MorphClose>
+
+		<MorphOpen type="CvMorphology" thread="ProcessingThread" group="s1">
+			<type>MORPH_OPEN</type>
+			<iterations>3</iterations>
+		</MorphOpen>
+
+		<Blob type="BlobExtractor" thread="ProcessingThread" group="s1">
+			<min_size>500</min_size>
+		</Blob>
+
+		<Decide type="MS_Blueball_Decide" thread="ProcessingThread" group="s1">
+
+		</Decide>
+
+		<VisualServoIB type="VisualServoIB" thread="ProcessingThread" group="s1">
+		</VisualServoIB>
+		
+		<Mrrocpp type="Mrrocpp" thread="MrrocProxyThread" group="s1">
+			<port>8888</port>
+		</Mrrocpp>
+
+		<Wnd1 type="CvWindow" thread="PreviewExecutor" group="s1">
+			<title>Preview</title>
+			<count>3</count>
+		</Wnd1>
+  	
+	</Components>
+	
+  <!-- Threads of execution -->
+
+	<Executors>
+		<ProcessingThread type="continuous">
+			<main_component>ImageSource</main_component>
+		</ProcessingThread>
+		
+    <MrrocProxyThread type="continuous">
+			<main_component>Mrrocpp</main_component>
+		</MrrocProxyThread>
+		
+		<PreviewExecutor type="periodic">
+			<main_component>Wnd1</main_component>
+			<interval>0.03</interval>
+		</PreviewExecutor>
+	</Executors>
+
+	<Events>
+<!--		<Event source="CvUndistort.newUndistortedImage" destination="Window.onNewImage"/>-->
+
+		<Event source="ImageSource.newImage" destination="Decide.onNewCameraInfo"/>
+		<Event source="ImageSource.newImage" destination="ColorConv.onNewImage"/>
+		<Event source="ColorConv.newImage" destination="LUT.onNewImage"/>
+		<Event source="LUT.newImage" destination="MorphClose.onNewImage"/>
+		<Event source="MorphClose.newImage" destination="MorphOpen.onNewImage"/>
+		<Event source="MorphOpen.newImage" destination="Wnd1.onNewImage1"/>
+		<Event source="MorphOpen.newImage"  destination="Blob.onNewImage"/>
+		<Event source="Blob.newBlobs"       destination="Decide.onNewBlobs"/>
+		<Event source="Decide.newImage" destination="Wnd1.onNewImage0"/>
+		<Event source="Decide.newImage" destination="Wnd1.onNewImage2"/>
+
+<!--		<Event source="ImageSource.newImage" destination="CvUndistort.onNewImage"/>
+		<Event source="CvUndistort.newUndistortedImage" destination="NewestImage.onNewImage"/>
+		-->
+		<Event source="Decide.Found" destination="VisualServoIB.onObjectLocated"/>
+		<Event source="Decide.NotFound" destination="VisualServoIB.onObjectNotFound"/>
+		
+	</Events>
+
+	<DataStreams>
+		<ImageSource>
+			<out_img type="out" group="Con1"/>
+			<out_cameraInfo type="out" group="CameraInfo"/>
+		</ImageSource>
+		
+		<ColorConv>
+			<in_img  type="in"  group="Con1"/>
+			<out_img type="out" group="Con3"/>
+		</ColorConv>
+
+		<LUT>
+			<in_img       type="in"  group="Con3"/>
+			<out_segments type="out" group="Con4"/>
+		</LUT>
+		
+		<MorphClose>
+			<in_img  type="in"  group="Con4"/>
+			<out_img type="out" group="Con5"/>
+		</MorphClose>
+
+		<MorphOpen>
+			<in_img  type="in"  group="Con5"/>
+			<out_img type="out" group="Con6"/>
+		</MorphOpen>
+		
+		<Blob>
+			<in_img    type="in"  group="Con6"/>
+			<out_blobs type="out" group="blobs"/>
+		</Blob>		
+		
+		<Decide>
+			<in_blobs  type="in"  group="blobs"/>
+			<in_cameraInfo type="in" group="CameraInfo"/>
+			<out_balls type="out" group="balls"/>
+			<out_imagePosition type="out" group="ImagePosition"/>
+		</Decide>
+		
+		<Wnd1>
+			<in_img0  type="in" group="Con1"/>
+			<in_draw0 type="in" group="balls"/>
+			<in_img1  type="in" group="Con6"/>
+			<in_img2  type="in" group="Con1"/>
+		</Wnd1>
+		
+		<VisualServoIB>
+			<in_position type="in" group="ImagePosition"/>
+			<out_reading type="out" group="reading"/>
+		</VisualServoIB>
+		
+		<Mrrocpp>
+			<reading type="in" group="reading"/>
+			<!-- <in_timestamp type="in" group="Timestamp"/>  -->
+		</Mrrocpp>
+		
+<!--		<Window>
+			<in_draw type="in" group="Chessboard"/>
+			<in_img type="in" group="UndistortedImage"/>
+		</Window>-->
+	</DataStreams>
+</Task>
